@@ -1,0 +1,304 @@
+# Cấu hình mẫu cho Fork HTTP Framework
+# File này chứa tất cả các cấu hình có thể sử dụng
+
+# Cấu hình HTTP Framework
+http:
+  # Cấu hình graceful shutdown - other configurations moved to middleware packages
+  # Note: The following configurations are now handled by dedicated middleware packages:
+  # - max_request_body_size -> bodylimit middleware package  
+  # - allowed_methods -> method middleware package
+  # - request_timeout -> timeout middleware package
+  # - enable_security_headers -> helmet middleware package
+  graceful_shutdown:
+    # Bật/tắt graceful shutdown
+    enabled: true
+    
+    # Thời gian tối đa để chờ graceful shutdown (seconds)
+    timeout: 30
+    
+    # Có chờ tất cả connections kết thúc không
+    wait_for_connections: true
+    
+    # Kích thước buffer cho signal channel
+    signal_buffer_size: 1
+
+  # Adapter và server configuration
+  debug: true
+  adapter: "http"  # http, fasthttp, http2, quic
+  
+  # Cấu hình cho adapter net/http tiêu chuẩn
+  http:
+    addr: "localhost"
+    port: 7667
+    read_timeout: 10s            # ReadTimeout cho http.Server
+    write_timeout: 10s           # WriteTimeout cho http.Server
+    read_header_timeout: 5s      # ReadHeaderTimeout cho http.Server
+    idle_timeout: 120s           # IdleTimeout cho http.Server
+    max_header_bytes: 1048576    # 1 MB - MaxHeaderBytes cho http.Server
+    body_limit: 4194304          # 4 MB - Giới hạn kích thước request body
+    compression: true            # Bật/tắt nén HTTP
+    shutdown_timeout: 30s        # Thời gian tối đa cho Graceful Shutdown
+    keep_alives_enabled: true    # Bật/tắt HTTP Keep-Alives
+    tls:
+      enabled: false
+      cert_file: "./storage/certs/server.crt"
+      key_file: "./storage/certs/server.key"
+      min_version: "1.2"         # 1.0, 1.1, 1.2, 1.3
+      max_version: "1.3"
+      prefer_server_cipher_suites: true
+      cipher_suites: []
+      curve_preferences: []
+  
+  # Cấu hình cho adapter fasthttp
+  fasthttp:
+    addr: "localhost"
+    port: 7668
+    read_timeout: 10s
+    write_timeout: 10s
+    max_request_body_size: 4194304  # 4 MB
+    compression: true
+    tls:
+      enabled: false
+      cert_file: "./storage/certs/server.crt"
+      key_file: "./storage/certs/server.key"
+      min_version: "1.2"
+      max_version: "1.3"
+      prefer_server_cipher_suites: true
+      cipher_suites: []
+      curve_preferences: []
+  
+  # Cấu hình cho adapter HTTP/2
+  http2:
+    addr: "localhost"
+    port: 7669
+    read_timeout: 10s
+    write_timeout: 10s
+    idle_timeout: 120s
+    read_idle_timeout: 30s        # Thời gian chờ trước khi gửi PING để kiểm tra kết nối
+    ping_timeout: 15s             # Thời gian chờ phản hồi PING
+    max_header_bytes: 1048576     # 1 MB
+    body_limit: 4194304          # 4 MB
+    compression: true
+    h2c: true                    # Hỗ trợ HTTP/2 Cleartext - không cần TLS
+    tls:
+      enabled: true               # HTTP/2 thường yêu cầu TLS (trừ khi dùng h2c)
+      cert_file: "./storage/certs/server.crt"
+      key_file: "./storage/certs/server.key"
+      min_version: "1.2"
+      max_version: "1.3"
+      prefer_server_cipher_suites: true
+      cipher_suites: []
+      curve_preferences: []
+    # Cấu hình đặc biệt của HTTP/2
+    max_concurrent_streams: 250   # Số lượng stream đồng thời tối đa cho mỗi client
+    initial_window_size: 1048576  # 1 MB - Kích thước cửa sổ flow control ban đầu
+    max_frame_size: 16384         # 16 KB - Kích thước frame tối đa
+    max_header_table_size: 4096   # 4 KB - Kích thước bảng nén header
+  
+  # Cấu hình cho adapter QUIC (HTTP/3)
+  quic:
+    addr: "localhost"
+    port: 7670
+    handshake_idle_timeout: 5s        # Thời gian chờ trong quá trình handshake
+    max_idle_timeout: 30s             # Thời gian tối đa mà kết nối có thể không hoạt động
+    keep_alive_period: 15s            # Thời gian giữa các gói tin keepalive
+    initial_stream_receive_window: 524288      # 512 KB - Flow control ban đầu cho stream
+    max_stream_receive_window: 6291456         # 6 MB - Flow control tối đa cho stream
+    initial_connection_receive_window: 524288  # 512 KB - Flow control ban đầu cho connection
+    max_connection_receive_window: 15728640    # 15 MB - Flow control tối đa cho connection
+    max_incoming_streams: 100         # Số lượng streams hai chiều tối đa
+    max_incoming_uni_streams: 100     # Số lượng streams một chiều tối đa
+    initial_packet_size: 1350         # Kích thước ban đầu cho các gói tin
+    disable_path_mtu_discovery: false # Tắt tính năng Path MTU Discovery
+    allow_0rtt: false                 # Cho phép kết nối 0-RTT
+    enable_datagrams: true            # Bật hỗ trợ QUIC datagram (RFC 9221)
+    enable_h3_datagrams: false        # Bật hỗ trợ HTTP/3 datagram (RFC 9297)
+    qlog_dir: "./storage/logs/quic"   # Thư mục lưu QUIC logs
+    tls:
+      enabled: true                   # QUIC/HTTP3 bắt buộc TLS
+      cert_file: "./storage/certs/server.crt"
+      key_file: "./storage/certs/server.key"
+      min_version: "1.3"              # QUIC yêu cầu TLS 1.3
+      max_version: "1.3"
+      prefer_server_cipher_suites: true
+      cipher_suites: []
+      curve_preferences: []
+
+  # Cấu hình cho Unified Adapter - Hỗ trợ nhiều giao thức đồng thời
+  unified:
+    # Cấu hình cơ bản
+    primary_addr: "localhost"       # Địa chỉ IP chính cho tất cả các giao thức
+    shutdown_timeout: 60s           # Thời gian graceful shutdown cho tất cả services
+    
+    # HTTP/1.1 Configuration
+    http:
+      enabled: true                 # Bật/tắt HTTP/1.1
+      port: 8080
+      read_timeout: 15s
+      write_timeout: 15s
+      read_header_timeout: 5s
+      idle_timeout: 120s
+      max_header_bytes: 1048576     # 1 MB
+      body_limit: 10485760          # 10 MB
+      compression:
+        enabled: true
+        level: 6                    # Mức nén (1-9)
+        types: ["text/*", "application/json", "application/javascript"]
+      keep_alives_enabled: true
+      
+    # HTTP/2 Configuration
+    http2:
+      enabled: true                 # Bật/tắt HTTP/2
+      port: 8443                    # Port riêng cho HTTP/2 over TLS
+      h2c_port: 8081               # Port cho HTTP/2 Cleartext
+      max_concurrent_streams: 500   # Số streams đồng thời tối đa
+      initial_window_size: 2097152  # 2 MB - Flow control ban đầu
+      max_frame_size: 32768         # 32 KB - Kích thước frame tối đa
+      max_header_table_size: 8192   # 8 KB - Bảng nén header HPACK
+      read_idle_timeout: 60s
+      ping_timeout: 30s
+      write_byte_timeout: 30s
+      
+    # HTTP/3 (QUIC) Configuration  
+    http3:
+      enabled: true                 # Bật/tắt HTTP/3
+      port: 9443
+      handshake_idle_timeout: 10s
+      max_idle_timeout: 60s
+      keep_alive_period: 30s
+      initial_stream_receive_window: 1048576      # 1 MB
+      max_stream_receive_window: 16777216         # 16 MB  
+      initial_connection_receive_window: 1048576  # 1 MB
+      max_connection_receive_window: 67108864     # 64 MB
+      max_incoming_streams: 200
+      max_incoming_uni_streams: 200
+      initial_packet_size: 1200
+      disable_path_mtu_discovery: false
+      allow_0rtt: true              # Cho phép 0-RTT cho hiệu suất cao
+      enable_datagrams: true
+      enable_h3_datagrams: true
+      versions: ["1", "2"]          # Các phiên bản QUIC hỗ trợ
+      qlog_dir: "./storage/logs/quic"
+      
+    # WebSocket Configuration
+    websocket:
+      enabled: true                 # Bật/tắt WebSocket
+      max_message_size: 33554432    # 32 MB - Kích thước message tối đa
+      read_buffer_size: 4096
+      write_buffer_size: 4096
+      handshake_timeout: 10s
+      compression:
+        enabled: true
+        level: 1                    # Mức nén WebSocket
+        threshold: 1024             # Nén message > 1KB
+      ping_period: 54s              # Gửi ping mỗi 54s
+      pong_wait: 60s                # Chờ pong trong 60s
+      write_wait: 10s               # Timeout cho write operation
+      
+    # TLS Configuration - Bắt buộc cho unified adapter
+    tls:
+      enabled: true                 # Bắt buộc phải true cho unified adapter
+      cert_file: "./storage/certs/unified.crt"
+      key_file: "./storage/certs/unified.key"
+      # Certificate chain cho multi-domain
+      cert_files:
+        - "./storage/certs/example.com.crt"
+        - "./storage/certs/api.example.com.crt"
+      key_files:
+        - "./storage/certs/example.com.key" 
+        - "./storage/certs/api.example.com.key"
+      min_version: "1.2"            # Tối thiểu TLS 1.2
+      max_version: "1.3"            # Tối đa TLS 1.3
+      prefer_server_cipher_suites: true
+      session_tickets_disabled: false
+      session_ticket_key: ""        # Hex-encoded 32-byte key
+      client_ca_file: ""            # File CA để verify client certificates
+      client_auth_type: "NoClientCert"  # NoClientCert, RequestClientCert, RequireAnyClientCert, VerifyClientCertIfGiven, RequireAndVerifyClientCert
+      
+      # Cipher suites for different TLS versions
+      cipher_suites:
+        - "TLS_AES_256_GCM_SHA384"           # TLS 1.3
+        - "TLS_CHACHA20_POLY1305_SHA256"     # TLS 1.3  
+        - "TLS_AES_128_GCM_SHA256"           # TLS 1.3
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"      # TLS 1.2
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"       # TLS 1.2
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"      # TLS 1.2
+        
+      # Elliptic curves preferences
+      curve_preferences:
+        - "X25519"
+        - "P-384" 
+        - "P-256"
+        
+      # ALPN (Application Layer Protocol Negotiation)
+      next_protos: ["h2", "http/1.1", "h3"]
+      
+    # Load Balancing và High Availability
+    load_balancing:
+      enabled: false                # Bật/tắt load balancing
+      strategy: "round_robin"       # round_robin, least_connections, ip_hash, weighted
+      health_check:
+        enabled: true
+        interval: 30s
+        timeout: 10s
+        path: "/health"
+        expected_status: 200
+      backends:
+        - addr: "127.0.0.1:8081"
+          weight: 1
+          max_connections: 1000
+        - addr: "127.0.0.1:8082" 
+          weight: 1
+          max_connections: 1000
+          
+    # Rate Limiting cho unified adapter
+    rate_limiting:
+      enabled: true
+      global_limit: 10000           # Requests/second toàn hệ thống
+      per_ip_limit: 100             # Requests/second per IP
+      burst_size: 200               # Burst buffer size
+      window: "1m"                  # Time window
+      cleanup_interval: "10m"       # Cleanup expired entries
+      
+    # Connection Management
+    connection:
+      max_connections: 10000        # Tổng số connections tối đa
+      max_connections_per_ip: 100   # Connections tối đa per IP
+      connection_timeout: 300s      # Timeout cho idle connections
+      
+    # Monitoring và Metrics
+    monitoring:
+      enabled: true
+      metrics_port: 9090            # Port cho Prometheus metrics
+      pprof_enabled: true           # Bật profiling endpoint
+      pprof_port: 6060
+      log_level: "info"             # debug, info, warn, error
+      access_log:
+        enabled: true
+        format: "combined"          # combined, common, json
+        file: "./storage/logs/unified-access.log"
+        
+    # Protocol Detection và Routing
+    protocol_detection:
+      enabled: true                 # Tự động detect giao thức
+      timeout: 5s                   # Timeout cho detection
+      fallback_protocol: "http"     # Giao thức fallback khi không detect được
+      
+    # Advanced Features
+    advanced:
+      # HTTP/2 Push hỗ trợ
+      http2_push_enabled: true
+      
+      # Early Hints (RFC 8297)
+      early_hints_enabled: true
+      
+      # Brotli compression hỗ trợ
+      brotli_enabled: true
+      brotli_quality: 6
+      
+      # Request/Response buffer pools
+      buffer_pool:
+        enabled: true
+        min_size: 4096              # 4KB
+        max_size: 65536             # 64KB
+        pool_size: 1000             # Số buffers trong pool
