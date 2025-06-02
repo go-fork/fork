@@ -288,7 +288,7 @@ api := app.Group("/api/v1")
 import "go.fork.vn/di"
 
 // Register services
-container := di.NewContainer()
+container := di.New()
 container.Register(&UserService{})
 container.Register(&EmailService{})
 

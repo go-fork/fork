@@ -627,7 +627,7 @@ func (r *UserRepository) FindByID(id int) (*User, error) {
 }
 
 func setupDI() *di.Container {
-    container := di.NewContainer()
+    container := di.New()
     
     // Register services
     container.Register(&UserRepository{})
