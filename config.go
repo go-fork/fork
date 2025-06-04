@@ -52,23 +52,6 @@ func DefaultWebAppConfig() *WebAppConfig {
 	}
 }
 
-// LoadConfigFromProvider tải cấu hình từ config provider
-// Sử dụng gói go.fork.vn/config để UnmarshalKey
-func LoadConfigFromProvider(provider interface{}, key string) (*WebAppConfig, error) {
-	config := DefaultWebAppConfig()
-
-	// Type assertion để kiểm tra provider có method UnmarshalKey không
-	if configProvider, ok := provider.(interface {
-		UnmarshalKey(string, interface{}) error
-	}); ok {
-		if err := configProvider.UnmarshalKey(key, config); err != nil {
-			return nil, err
-		}
-	}
-
-	return config, nil
-}
-
 // MergeConfig hợp nhất cấu hình từ nhiều nguồn
 // Note: Most configurations are now handled by middleware packages
 func (c *WebAppConfig) MergeConfig(other *WebAppConfig) {

@@ -5,11 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔄 Dependencies
+
+- **Upgraded direct dependencies**: Updated all direct dependencies to latest versions
+  - `go.fork.vn/config`: v0.1.0 → v0.1.3
+  - `go.fork.vn/di`: v0.1.0 → v0.1.3  
+  - `go.fork.vn/log`: v0.1.0 → v0.1.3
+
+### 🛡️ Enhanced Error Handling
+
+- **ServiceProvider.Register()**: Added comprehensive nil checks and panic handling
+  - Validates application parameter is not nil
+  - Validates container is not nil
+  - Prevents runtime errors during service registration
+
+- **ServiceProvider.Boot()**: Enhanced error handling with detailed validation
+  - Comprehensive nil checks for application and container
+  - Safe type assertions with error reporting for all services (http, log, config)
+  - Validates adapter configuration existence and type safety
+  - Strict validation for config loading and validation processes
+  - Detailed panic messages for debugging and troubleshooting
+
+- **LoadConfigFromProvider()**: Improved configuration loading robustness
+  - Added nil provider validation with panic for critical errors
+  - Added empty key validation with panic for misconfiguration
+  - Enhanced type assertion handling for config providers
+  - Automatic config validation after unmarshaling
+  - Better error propagation for debugging
+
+### 🔧 Code Refactoring
+
+- **Config Loading Refactoring**: Moved `LoadConfigFromProvider` from `config.go` to `provider.go`
+  - Relocated function as private method `loadConfigFromProvider()` within `ServiceProvider`
+  - Better encapsulation of config loading logic within service provider context
+  - Maintained all functionality while improving code organization
+  - Updated function signature to use receiver method instead of standalone function
+
+### 🧪 Testing & Mocks
+
+- **Mock Generation**: Regenerated all mock files using mockery v2.53.4
+  - Updated mocks for all core interfaces: Adapter, Context, HandlerFunc, Request, Response, Router
+  - Enhanced mock support with expecter pattern for better test assertions
+  - Improved type safety and interface compatibility
+  - Automatic mock generation through `mockery --all` command
+
+- **Config Testing**: Completely rebuilt `config_test.go` with comprehensive test coverage
+  - **Unit Tests**: 15+ test cases covering all config functionality (DefaultWebAppConfig, Validate, MergeConfig)
+  - **Mock Integration**: Advanced mock testing with `go.fork.vn/config/mocks` using expecter pattern
+  - **YAML Integration Tests**: Realistic scenarios simulating `configs/app.example.yaml` configuration
+  - **Benchmark Tests**: Performance testing for config operations with race detection
+  - **Edge Case Coverage**: Validation of error handling, nil configs, and invalid values
+
 ## [v0.0.9] - 2025-06-01
 
-### 🎉 Initial Release - Go-Fork HTTP Framework
+### 🎉 Initial Release - Fork HTTP Framework
 
-Đây là phiên bản đầu tiên của Go-Fork HTTP Framework, một framework HTTP hiệu năng cao và linh hoạt cho Go applications.
+Đây là phiên bản đầu tiên của Fork HTTP Framework, một framework HTTP hiệu năng cao và linh hoạt cho Go applications.
 
 ---
 
@@ -412,7 +465,7 @@ go.fork.vn/fork/
 ## 🎯 Key Dependencies
 
 ### Core Dependencies
-- **go.fork.vn/config v0.1.0**: YAML configuration management
+- **go.fork.vn/config v0.1.2**: YAML configuration management
 - **go.fork.vn/di v0.1.0**: Dependency injection container
 - **go.fork.vn/log v0.1.0**: Structured logging
 - **github.com/go-playground/validator/v10**: Request validation
@@ -458,7 +511,7 @@ Project này được phát hành dưới [MIT License](LICENSE).
 
 ## 🙏 Acknowledgments
 
-Cảm ơn tất cả contributors và community đã hỗ trợ phát triển Go-Fork HTTP Framework!
+Cảm ơn tất cả contributors và community đã hỗ trợ phát triển Fork HTTP Framework!
 
 ---
 

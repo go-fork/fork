@@ -396,4 +396,4 @@ Chúng tôi hoan nghênh contributions! Xem [Contributing Guide](../CONTRIBUTING
 
 **Happy coding với Fork HTTP Framework!** 🚀
 
-*Để được hỗ trợ, vui lòng tạo issue trên [GitHub](https://github.com/go-fork/http/issues) hoặc tham gia [Discord community](https://discord.gg/go-fork).*
+*Để được hỗ trợ, vui lòng tạo issue trên [GitHub](github.com/go-fork/http/issues) hoặc tham gia [Discord community](https://discord.gg/Fork).*

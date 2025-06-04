@@ -34,8 +34,8 @@ go mod init your-app
 go get go.fork.vn/fork
 
 # Cài đặt các adapter (optional)
-go get github.com/go-fork/adapter/fasthttp
-go get github.com/go-fork/adapter/http2
+go get github.com/Fork/adapter/fasthttp
+go get github.com/Fork/adapter/http2
 ```
 
 ### Verify Installation
@@ -777,7 +777,7 @@ Fork hỗ trợ nhiều HTTP engines thông qua adapter pattern.
 ### FastHTTP Adapter
 
 ```go
-import "github.com/go-fork/adapter/fasthttp"
+import "github.com/Fork/adapter/fasthttp"
 
 func main() {
     app := fork.New()
@@ -802,7 +802,7 @@ func main() {
 ### HTTP/2 Adapter
 
 ```go
-import "github.com/go-fork/adapter/http2"
+import "github.com/Fork/adapter/http2"
 
 func main() {
     app := fork.New()
@@ -1792,7 +1792,7 @@ Sau khi đã nắm được các kiến thức cơ bản, đây là các bước
 
 ```bash
 # Clone examples repository
-git clone https://github.com/go-fork/examples
+git clone github.com/go-fork/examples
 cd examples
 
 # Basic web application
@@ -1886,11 +1886,11 @@ Tối ưu performance cho production:
 
 ### 7. Community & Resources
 
-- **GitHub**: [https://github.com/go-fork/http](https://github.com/go-fork/http)
-- **Documentation**: [https://docs.go-fork.vn](https://docs.go-fork.vn)
-- **Examples**: [https://github.com/go-fork/examples](https://github.com/go-fork/examples)
-- **Discord**: [https://discord.gg/go-fork](https://discord.gg/go-fork)
-- **Blog**: [https://blog.go-fork.vn](https://blog.go-fork.vn)
+- **GitHub**: [github.com/go-fork/http](github.com/go-fork/http)
+- **Documentation**: [https://docs.Fork.vn](https://docs.Fork.vn)
+- **Examples**: [github.com/go-fork/examples](github.com/go-fork/examples)
+- **Discord**: [https://discord.gg/Fork](https://discord.gg/Fork)
+- **Blog**: [https://blog.Fork.vn](https://blog.Fork.vn)
 
 ## 📚 API Reference Complete
 

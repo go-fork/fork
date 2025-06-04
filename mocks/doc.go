@@ -37,4 +37,4 @@
 // The mocks in this package implement all methods required by the corresponding interfaces
 // and track state changes for testing purposes. They are designed to be simple to use
 // while providing enough information for comprehensive testing.
-package mocks
+package fork_mocks

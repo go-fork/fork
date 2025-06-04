@@ -40,7 +40,7 @@ To use an adapter with Fork:
 ```go
 import (
     "go.fork.vn/fork"
-    "github.com/go-fork/adapter/unified" // or any other adapter
+    "github.com/Fork/adapter/unified" // or any other adapter
 )
 
 func main() {

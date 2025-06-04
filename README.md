@@ -418,7 +418,7 @@ MIT License - xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 - [Examples](../examples/)
 - [Middleware](../middleware/)
 - [Templates](../templates/)
-- [Issues](https://github.com/go-fork/http/issues)
+- [Issues](github.com/go-fork/http/issues)
 
 ---
 
