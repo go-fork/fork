@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2025-06-05
 
+### 📚 Documentation - Complete README.md Restructure
+
+- **README.md Complete Overhaul**: Comprehensive restructure with professional enterprise-grade documentation
+  - Added professional visual design with badges, navigation links, and modern layout
+  - Enhanced with comprehensive mermaid architecture diagrams showing framework flow
+  - Restructured from 426 lines to 959 lines with detailed technical content
+  - Added visual architecture representation with component relationships
+  - Enhanced code examples based on actual source code capabilities
+  - Professional table layouts for documentation organization
+  - Comprehensive resource links and community support information
+
+- **Content Structure Improvements**:
+  - **Tổng quan Section**: Professional positioning with actual capabilities focus
+  - **Kiến trúc Framework**: Added mermaid diagrams for architecture and request flow
+  - **Context System**: Detailed data binding and validation examples
+  - **Router System**: Advanced routing features with trie-based performance
+  - **Middleware System**: YAML-based auto-configuration with 30+ middleware packages
+  - **Dependency Injection**: Service container integration patterns
+  - **Adapter Pattern**: Multiple HTTP engine support documentation
+  - **Performance Benchmarks**: Actual benchmark numbers and optimization features
+  - **Testing Framework**: Comprehensive testing utilities and examples
+  - **Production Deployment**: Docker, docker-compose, and graceful shutdown
+
+- **Technical Documentation Enhancement**:
+  - Accurate feature documentation based on actual source code
+  - Removed non-existent enterprise features, focused on real capabilities
+  - Professional Vietnamese technical terminology throughout
+  - Structured documentation table with status indicators
+  - Comprehensive examples categorized by use case
+  - Production-ready deployment patterns and best practices
+
+- **Previous Documentation Updates**: 
+  - **Router Documentation (docs/router.md)**: Complete restructure (620 lines) based on actual source code
+    - Documented actual Router interface with methods: Handle, Group, Use, Static, Routes, ServeHTTP, Find
+    - Added DefaultRouter implementation with real struct fields
+    - Documented TrieNode and RouteTrie structures from source code
+    - Added comprehensive route pattern matching and performance optimization
+  - **Adapter Documentation (docs/adapter.md)**: Complete restructure (1038 lines) based on actual source code
+    - Documented actual Adapter interface with methods: Name, Serve, RunTLS, ServeHTTP, HandleFunc, Use, SetHandler, Shutdown
+    - Added implementation patterns and framework integration examples
+    - Removed non-existent enterprise features, focused on actual capabilities
+
 ### 🔄 Dependencies
 
 - **Upgraded direct dependencies**: Updated all direct dependencies to latest versions

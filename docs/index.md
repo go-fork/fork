@@ -1,74 +1,89 @@
 # Fork HTTP Framework Documentation
 
-Chào mừng đến với tài liệu đầy đủ của Fork HTTP Framework! Framework này cung cấp một giải pháp HTTP linh hoạt và hiệu năng cao cho các ứng dụng Go.
+Chào mừng đến với tài liệu kỹ thuật toàn diện của Fork HTTP Framework! Framework này cung cấp một giải pháp HTTP enterprise-grade với kiến trúc linh hoạt và hiệu năng cao tối ưu cho các ứng dụng Go.
 
 ## 📚 Tài liệu tổng quan
 
-### 🚀 Bắt đầu
-- **[Getting Started Guide](overview.md)** - Hướng dẫn từ cơ bản đến nâng cao
-- **[Quick Start Examples](../examples/)** - Các ví dụ thực tế
-
+### 🚀 Bắt đầu nhanh
+- **[Getting Started Guide](overview.md)** - Hướng dẫn triển khai từ cơ bản đến nâng cao
 ### 🏗️ Core Components
 
 #### 1. [Configuration System](config.md)
-Hệ thống cấu hình linh hoạt với YAML support
-- WebAppConfig structure và options
-- YAML configuration management
-- Environment-specific configs
-- Graceful shutdown configuration
+Hệ thống quản lý cấu hình enterprise với YAML integration
+- Kiến trúc WebAppConfig và tùy chọn cấu hình
+- Quản lý cấu hình YAML động
+- Environment-specific configuration management
+- Graceful shutdown configuration patterns
 
 #### 2. [Service Provider & Dependency Injection](service-provider.md)
-DI container integration và service management
-- ServiceProvider interface
-- Container management
-- Service registration và resolution
-- Adapter integration
+Container DI integration và service lifecycle management
+- Interface ServiceProvider và design patterns
+- Container lifecycle management
+- Service registration và dependency resolution
+- Adapter integration strategies
 
 #### 3. [Web Application](web-application.md)
-Core WebApp object và application lifecycle
-- WebApp creation và configuration
-- Request lifecycle management
-- Server startup và shutdown
-- Application context
+Core WebApp architecture và application lifecycle
+- WebApp instantiation và configuration management
+- Request lifecycle và middleware pipeline
+- Server startup, operation và shutdown procedures
+- Application context management
 
 #### 4. [Context, Request & Response](context-request-response.md)
-HTTP context system cho request/response handling
-- Context interface và implementation
-- Request data binding và validation
-- Response formatting và helpers
-- Data parsing và serialization
+Hệ thống HTTP context cho request/response processing
+- Context interface implementation và best practices
+- Request data binding, validation và sanitization
+- Response formatting, helpers và content negotiation
+- Data parsing, serialization và transformation
 
 #### 5. [Router System](router.md)
-Powerful routing với trie structure
-- Route registration và matching
-- Parameters và wildcards
-- Route groups và middleware
-- Performance optimization
+High-performance routing với trie-based structure
+- Route registration, matching và optimization
+- Dynamic parameters và wildcard handling
+- Route groups, middleware chains và namespacing
+- Performance tuning và memory optimization
 
 #### 6. [Adapter Pattern](adapter.md)
-Multi-engine HTTP support
-- Adapter interface và implementations
-- Engine-specific configurations
-- Performance comparisons
-- Custom adapter development
+Multi-engine HTTP support với pluggable architecture
+- Adapter interface design và implementations
+- Engine-specific configuration patterns
+#### 7. [Error Handling](error-handling.md)
+Enterprise-grade error management system
+- HttpError struct với comprehensive error context
+- Error wrapping, propagation và recovery patterns
+- Status code management và HTTP compliance
+- Structured error responses và debugging support
 
-## 🔧 Advanced Topics
+#### 8. [Middleware System](middleware.md)  
+Extensible middleware architecture
+- Middleware chain execution và lifecycle
+- Built-in middleware components
+- Custom middleware development patterns
+- Performance considerations và best practices
 
-### Middleware System
-- **[Built-in Middleware](../middleware/)** - Middleware có sẵn
-- **Custom Middleware Development** - Xây dựng middleware riêng
-- **Middleware Groups** - Quản lý middleware chains
+## 🔧 Chủ đề nâng cao
+
+### Middleware Architecture
+- **[Built-in Middleware](../middleware/)** - Middleware components có sẵn
+- **Custom Middleware Development** - Phát triển middleware tùy chỉnh
+- **Middleware Groups** - Quản lý middleware chains và pipelines
 
 ### Template Integration
 - **[Template Engines](../templates/)** - Multi-engine template support
-- **Template Rendering** - Server-side rendering
-- **Template Caching** - Performance optimization
+- **Template Rendering** - Server-side rendering strategies
+- **Template Caching** - Performance optimization techniques
 
-### Performance & Production
-- **Benchmarking & Optimization** - Performance tuning
-- **Production Deployment** - Docker, Kubernetes setup
-- **Monitoring & Metrics** - Health checks, metrics collection
-- **Load Testing** - Stress testing strategies
+### Performance & Production Deployment
+- **Benchmarking & Optimization** - Performance tuning methodologies
+- **Production Deployment** - Docker, Kubernetes deployment strategies
+- **Monitoring & Metrics** - Health checks, metrics collection systems
+- **Load Testing** - Stress testing và capacity planning
+
+### Testing & Quality Assurance
+- **[Testing Framework](testing.md)** - Comprehensive testing methodologies
+- **Mock Integration** - Mockery-based testing patterns
+- **Integration Testing** - End-to-end testing strategies
+- **Performance Benchmarking** - Benchmark testing và profiling
 
 ## 📖 API Reference
 
@@ -183,22 +198,103 @@ app.ListenWithGracefulShutdown(":8080")
 4. **Extensibility**: Middleware system, DI integration
 5. **Production-Ready**: Graceful shutdown, error handling
 
-### Component Interaction
+### Kiến trúc hệ thống
 
+#### Sơ đồ tổng quan kiến trúc
+
+```mermaid
+graph TB
+    subgraph "Application Layer"
+        WA[WebApp Core]
+        CFG[Configuration]
+        DI[DI Container]
+        LC[Lifecycle Manager]
+    end
+    
+    subgraph "Middleware Pipeline"
+        MW1[Auth Middleware]
+        MW2[CORS Middleware]
+        MW3[Logging Middleware]
+        MWN[Custom Middleware]
+    end
+    
+    subgraph "Request Processing"
+        RT[Router System]
+        CTX[Context Manager]
+        REQ[Request Handler]
+        RES[Response Handler]
+    end
+    
+    subgraph "Adapter Layer"
+        ADP[Adapter Interface]
+        HTTP[net/http]
+        FAST[fasthttp]
+        H2[http2]
+        QUIC[quic]
+    end
+    
+    subgraph "Infrastructure"
+        ERR[Error Handling]
+        LOG[Logging System]
+        MET[Metrics]
+        HEALTH[Health Checks]
+    end
+    
+    WA --> CFG
+    WA --> DI
+    WA --> LC
+    WA --> MW1
+    MW1 --> MW2
+    MW2 --> MW3
+    MW3 --> MWN
+    MWN --> RT
+    RT --> CTX
+    CTX --> REQ
+    REQ --> RES
+    RES --> ADP
+    ADP --> HTTP
+    ADP --> FAST
+    ADP --> H2
+    ADP --> QUIC
+    
+    ERR -.-> CTX
+    LOG -.-> MW3
+    MET -.-> HEALTH
+    HEALTH -.-> WA
+    
+    style WA fill:#e1f5fe
+    style ADP fill:#f3e5f5
+    style RT fill:#e8f5e8
+    style CTX fill:#fff3e0
 ```
-┌─────────────────────────────────────────────────┐
-│                   WebApp                        │
-├─────────────────────────────────────────────────┤
-│  Configuration  │  DI Container  │  Lifecycle   │
-├─────────────────────────────────────────────────┤
-│                 Middleware Chain                │
-├─────────────────────────────────────────────────┤
-│     Router      │    Context     │   Response   │
-├─────────────────────────────────────────────────┤
-│                    Adapter                      │
-├─────────────────────────────────────────────────┤
-│  net/http  │  fasthttp  │  http2  │    quic     │
-└─────────────────────────────────────────────────┘
+
+#### Data Flow Architecture
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant WebApp
+    participant Middleware
+    participant Router
+    participant Context
+    participant Handler
+    participant Response
+    participant Adapter
+    
+    Client->>WebApp: HTTP Request
+    WebApp->>Middleware: Process Request
+    Middleware->>Router: Route Resolution
+    Router->>Context: Create Context
+    Context->>Handler: Execute Handler
+    Handler->>Context: Process Business Logic
+    Context->>Response: Format Response
+    Response->>Adapter: HTTP Response
+    Adapter->>Client: Send Response
+    
+    Note over Middleware: Authentication, CORS, Logging
+    Note over Router: Trie-based Routing
+    Note over Context: Request/Response State
+    Note over Handler: Business Logic
 ```
 
 ## 🚦 Getting Help

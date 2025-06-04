@@ -1,82 +1,146 @@
-# Adapter - HTTP Server Adapters
+# Adapter - HTTP Server Abstraction Layer
 
-Package `fork/adapter` cung cấp hệ thống adapter mạnh mẽ cho phép Fork Framework hoạt động với nhiều HTTP server implementations khác nhau. Adapter pattern cho phép framework abstract away các chi tiết implementation cụ thể và cung cấp API đồng nhất.
+Package `fork/adapter` cung cấp interface và implementations cho việc kết nối framework với các HTTP server khác nhau. Package này cho phép framework hoạt động trên nhiều server implementations khác nhau như net/http standard, fasthttp, và các server khác.
 
-## Tổng quan
+## 🏗️ Tổng quan kiến trúc
 
-Adapter system bao gồm:
+Adapter subsystem được thiết kế để tách biệt framework logic khỏi HTTP server implementation cụ thể:
 
-- **Adapter Interface**: Định nghĩa contract chung cho tất cả adapters
-- **Multiple Implementations**: net/http, fasthttp, HTTP/2, QUIC/HTTP3
-- **Configuration Management**: Cấu hình riêng cho từng adapter
-- **Performance Optimization**: Tối ưu cho từng server type
-- **Unified API**: API nhất quán cho tất cả adapters
+- **Adapter Interface**: Contract chuẩn cho HTTP server abstractions
+- **Server Independence**: Framework có thể hoạt động với bất kỳ HTTP server nào
+- **Performance Optimization**: Tối ưu hóa cho từng server implementation
+- **Graceful Shutdown**: Hỗ trợ shutdown an toàn cho production
 
-## Adapter Interface
+### Sơ đồ kiến trúc Adapter
 
-### Core Methods
+```mermaid
+graph TB
+    subgraph "Framework Layer"
+        APP[Fork Application]
+        ROUTER[Router]
+        MIDDLEWARE[Middleware]
+        HANDLER[Handlers]
+    end
+    
+    subgraph "Adapter Layer"
+        ADAPTER[Adapter Interface]
+        HTTP_ADAPTER[HTTP Adapter]
+        FAST_ADAPTER[FastHTTP Adapter]
+        CUSTOM_ADAPTER[Custom Adapter]
+    end
+    
+    subgraph "Server Layer"
+        NET_HTTP[net/http Server]
+        FASTHTTP[FastHTTP Server]
+        CUSTOM_SERVER[Custom Server]
+    end
+    
+    APP --> ADAPTER
+    ROUTER --> ADAPTER
+    MIDDLEWARE --> ADAPTER
+    HANDLER --> ADAPTER
+    
+    ADAPTER --> HTTP_ADAPTER
+    ADAPTER --> FAST_ADAPTER
+    ADAPTER --> CUSTOM_ADAPTER
+    
+    HTTP_ADAPTER --> NET_HTTP
+    FAST_ADAPTER --> FASTHTTP
+    CUSTOM_ADAPTER --> CUSTOM_SERVER
+    
+    style ADAPTER fill:#e1f5fe
+    style HTTP_ADAPTER fill:#e8f5e8
+    style NET_HTTP fill:#fff3e0
+```
+    IFACE --> WS
+    
+    HTTP --> CFG
+    FAST --> CFG
+    H2 --> CFG
+    H3 --> CFG
+    ## 🔧 Adapter Interface
+
+Adapter interface định nghĩa contract chuẩn cho tất cả HTTP server implementations.
+
+### Interface Definition
 
 ```go
 type Adapter interface {
-    // Tên của adapter
+    // Name trả về tên của adapter
     Name() string
     
-    // Khởi động server
+    // Serve khởi động HTTP server với cấu hình từ adapter
     Serve() error
     
-    // Khởi động HTTPS server
+    // RunTLS khởi động HTTPS server với chứng chỉ SSL/TLS
     RunTLS(certFile, keyFile string) error
     
-    // HTTP handler integration
+    // ServeHTTP xử lý HTTP request (implements http.Handler)
     ServeHTTP(w http.ResponseWriter, r *http.Request)
     
-    // Đăng ký handler function
-    HandleFunc(method, path string, handler HandlerFunc)
+    // HandleFunc đăng ký handler function với method và path
+    HandleFunc(method, path string, handler func(ctx context.Context))
     
-    // Đăng ký middleware
-    Use(middleware HandlerFunc)
+    // Use thêm middleware vào adapter
+    Use(middleware func(ctx context.Context))
     
-    // Cấu hình
+    // SetHandler thiết lập handler chính cho adapter
+    SetHandler(handler http.Handler)
+    
+    // Shutdown đóng HTTP server một cách graceful
+    Shutdown() error
+}
+    
+    // Middleware ecosystem
+    Use(middleware ...MiddlewareFunc)
+    UseGlobal(middleware MiddlewareFunc)
+    
+    // Advanced configuration management
     SetConfig(config interface{}) error
     GetConfig() interface{}
-    
-    // Lifecycle management
-    Start() error
-    Stop() error
-    Restart() error
-}
-```
+    ```
 
-## Available Adapters
+### Core Methods
 
-### 1. Standard HTTP Adapter (`http`)
-
-Sử dụng Go's standard `net/http` package:
+#### Server Lifecycle
 
 ```go
-type HTTPAdapter struct {
-    server     *http.Server
-    config     *HTTPConfig
-    router     router.Router
-    middleware []HandlerFunc
+// Khởi động HTTP server
+err := adapter.Serve()
+if err != nil {
+    log.Fatal("Failed to start server:", err)
+}
+
+// Khởi động HTTPS server
+err := adapter.RunTLS("cert.pem", "key.pem")
+if err != nil {
+    log.Fatal("Failed to start TLS server:", err)
+}
+
+// Shutdown graceful
+err := adapter.Shutdown()
+if err != nil {
+    log.Error("Error during shutdown:", err)
 }
 ```
 
-**Features:**
-- Stable và well-tested
-- Full HTTP/1.1 support
-- Built-in HTTPS support
-- Graceful shutdown
-- Connection pooling
+#### Handler Registration
 
-**Configuration:**
-```yaml
-http:
-  addr: "localhost"
-  port: 7667
-  read_timeout: 10s
-  write_timeout: 10s
-  read_header_timeout: 5s
+```go
+// Đăng ký handler function
+adapter.HandleFunc("GET", "/api/users", func(ctx context.Context) {
+    ctx.JSON(200, map[string]string{"message": "Users endpoint"})
+})
+
+// Thêm middleware
+adapter.Use(func(ctx context.Context) {
+    log.Println("Processing request:", ctx.Path())
+    ctx.Next()
+})
+
+// Thiết lập handler chính
+adapter.SetHandler(myCustomHandler)
+```
   idle_timeout: 120s
   max_header_bytes: 1048576
   tls:
@@ -85,56 +149,59 @@ http:
     key_file: "./certs/server.key"
 ```
 
-### 2. FastHTTP Adapter (`fasthttp`)
+## 🚀 Adapter Implementation Patterns
 
-High-performance HTTP server implementation:
+### Basic Adapter Structure
+
+Mọi adapter implementation đều tuân theo pattern cơ bản:
 
 ```go
-type FastHTTPAdapter struct {
-    server     *fasthttp.Server
-    config     *FastHTTPConfig
-    router     router.Router
-    middleware []HandlerFunc
+type BaseAdapter struct {
+    name        string
+    server      interface{}
+    handler     http.Handler
+    middlewares []func(context.Context)
+    config      *AdapterConfig
+}
+
+func (a *BaseAdapter) Name() string {
+    return a.name
+}
+
+func (a *BaseAdapter) Use(middleware func(ctx context.Context)) {
+    a.middlewares = append(a.middlewares, middleware)
+}
+
+func (a *BaseAdapter) SetHandler(handler http.Handler) {
+    a.handler = handler
 }
 ```
 
-**Features:**
-- High performance (10x faster than net/http)
-- Low memory footprint
-- Zero-allocation trong hot paths
-- Custom context system
-- Built-in compression
-
-**Configuration:**
-```yaml
-fasthttp:
-  addr: "localhost"
-  port: 7668
-  read_timeout: 10s
-  write_timeout: 10s
-  max_request_body_size: 4194304
-  compression: true
-  tls:
-    enabled: false
-    cert_file: "./certs/server.crt"
-    key_file: "./certs/server.key"
-```
-
-### 3. HTTP/2 Adapter (`http2`)
-
-Full HTTP/2 protocol support:
+### Configuration Structure
 
 ```go
-type HTTP2Adapter struct {
-    server     *http.Server
-    config     *HTTP2Config
-    router     router.Router
-    middleware []HandlerFunc
+type AdapterConfig struct {
+    // Server settings
+    Host            string        // Server host
+    Port            int           // Server port
+    ReadTimeout     time.Duration // Request read timeout
+    WriteTimeout    time.Duration // Response write timeout
+    IdleTimeout     time.Duration // Connection idle timeout
+    
+    // TLS settings
+    TLSEnabled      bool          // Enable TLS/HTTPS
+    CertFile        string        // Path to certificate file
+    KeyFile         string        // Path to private key file
+    
+    // Performance settings
+    MaxHeaderBytes  int           // Maximum header size
+    MaxRequestSize  int64         // Maximum request body size
+    KeepAlive       bool          // Enable keep-alive connections
+    
+    // Graceful shutdown
+    ShutdownTimeout time.Duration // Graceful shutdown timeout
 }
 ```
-
-**Features:**
-- HTTP/2 protocol support
 - Server push capabilities
 - Multiplexing
 - Header compression (HPACK)
@@ -181,57 +248,44 @@ type QUICAdapter struct {
 ```yaml
 quic:
   addr: "localhost"
-  port: 7670
-  handshake_idle_timeout: 5s
-  max_idle_timeout: 30s
-  allow_0rtt: false
-  enable_datagrams: true
-  tls:
-    enabled: true
-    min_version: "1.3"
-    max_version: "1.3"
-```
+  ## 🛡️ Security Features
 
-### 5. Unified Adapter (`unified`)
-
-Multi-protocol support trong single adapter:
+### TLS/SSL Support
 
 ```go
-type UnifiedAdapter struct {
-    httpServer   *http.Server
-    http2Server  *http.Server
-    http3Server  *http3.Server
-    config       *UnifiedConfig
-    router       router.Router
-    middleware   []HandlerFunc
-}
-```
-
-**Features:**
-- Simultaneous HTTP/1.1, HTTP/2, HTTP/3
-- Protocol detection
-- Shared routing và middleware
-- Advanced load balancing
-- WebSocket support
-- Server push cho HTTP/2
-
-## Configuration System
-
-### Base Configuration
-
-Mỗi adapter có base configuration struct:
-
-```go
-type BaseConfig struct {
-    Addr           string        `yaml:"addr"`
-    Port           int           `yaml:"port"`
-    ReadTimeout    time.Duration `yaml:"read_timeout"`
-    WriteTimeout   time.Duration `yaml:"write_timeout"`
-    TLS            TLSConfig     `yaml:"tls"`
-}
-
+// Cấu hình TLS an toàn
 type TLSConfig struct {
-    Enabled     bool     `yaml:"enabled"`
+    CertFile            string              // Certificate file path
+    KeyFile             string              // Private key file path
+    MinVersion          uint16              // Minimum TLS version
+    MaxVersion          uint16              // Maximum TLS version
+    CipherSuites        []uint16            // Allowed cipher suites
+    PreferServerCiphers bool                // Prefer server cipher order
+    ClientAuth          tls.ClientAuthType  // Client authentication
+}
+
+func (a *Adapter) ConfigureTLS(config *TLSConfig) error {
+    // Implementation TLS configuration
+}
+```
+
+### Security Middleware
+
+```go
+// Security middleware cho adapter
+func securityMiddleware(ctx context.Context) {
+    // Security headers
+    ctx.Header("X-Content-Type-Options", "nosniff")
+    ctx.Header("X-Frame-Options", "DENY")
+    ctx.Header("X-XSS-Protection", "1; mode=block")
+    ctx.Header("Strict-Transport-Security", "max-age=31536000")
+    
+    ctx.Next()
+}
+
+// Áp dụng security middleware
+adapter.Use(securityMiddleware)
+```
     CertFile    string   `yaml:"cert_file"`
     KeyFile     string   `yaml:"key_file"`
     MinVersion  string   `yaml:"min_version"`
@@ -523,51 +577,462 @@ func (c *FastHTTPContext) FastHTTPContext() *fasthttp.RequestCtx {
 }
 ```
 
-## Best Practices
+## 📈 Performance Monitoring & Metrics
 
-1. **Adapter Selection**: Choose adapter based on requirements
-2. **Configuration**: Use environment-specific configs
-3. **TLS Setup**: Proper certificate management
-4. **Performance Tuning**: Adjust timeouts và buffer sizes
-5. **Error Handling**: Implement proper error handling for each adapter
-6. **Resource Management**: Monitor memory và connection usage
-7. **Security**: Configure TLS properly, validate inputs
+### Enterprise Metrics Collection
 
-## Monitoring và Metrics
+```go
+type AdapterPerformanceMonitor struct {
+    metrics        *AdapterMetrics          // Real-time metrics
+    collector      *MetricsCollector        // Data collection
+    exporter       *MetricsExporter         // Metrics export (Prometheus, etc.)
+    alertManager   *AlertManager            // Performance alerting
+    dashboard      *MetricsDashboard        // Real-time dashboard
+}
+
+func (apm *AdapterPerformanceMonitor) CollectMetrics() *AdapterMetrics {
+    return &AdapterMetrics{
+        RequestCount:      atomic.LoadInt64(&apm.metrics.RequestCount),
+        ActiveConnections: atomic.LoadInt64(&apm.metrics.ActiveConnections),
+        AvgResponseTime:   apm.calculateAverageResponseTime(),
+        ErrorRate:         apm.calculateErrorRate(),
+        ThroughputRPS:     apm.calculateThroughput(),
+        MemoryUsage:       apm.getMemoryUsage(),
+        CPUUsage:          apm.getCPUUsage(),
+        UptimeSeconds:     time.Since(apm.startTime).Nanoseconds() / 1e9,
+    }
+}
+
+// Performance monitoring middleware
+func (apm *AdapterPerformanceMonitor) MonitoringMiddleware() MiddlewareFunc {
+    return func(next HandlerFunc) HandlerFunc {
+        return func(c Context) {
+            start := time.Now()
+            
+            // Record request
+            atomic.AddInt64(&apm.metrics.RequestCount, 1)
+            atomic.AddInt64(&apm.metrics.ActiveConnections, 1)
+            
+            // Process request
+            next(c)
+            
+            // Record completion
+            duration := time.Since(start)
+            atomic.AddInt64(&apm.metrics.ActiveConnections, -1)
+            apm.recordResponseTime(duration)
+            
+            // Check for errors
+            if c.Response().Status() >= 400 {
+                apm.recordError()
+            }
+        }
+    }
+}
+```
+
+### Performance Monitoring Architecture
+
+```mermaid
+graph TB
+    subgraph "Performance Monitoring Pipeline"
+        REQ[HTTP Request] --> MONITOR[Request Monitor]
+        MONITOR --> TIMER[Response Timer]
+        TIMER --> COUNTER[Request Counter]
+        COUNTER --> HANDLER[Request Handler]
+        HANDLER --> RECORDER[Metrics Recorder]
+        RECORDER --> RESP[HTTP Response]
+    end
+    
+    subgraph "Metrics Collection"
+        RECORDER --> REALTIME[Real-time Metrics]
+        REALTIME --> AGGREGATOR[Metrics Aggregator]
+        AGGREGATOR --> STORAGE[Metrics Storage]
+        STORAGE --> EXPORT[Metrics Export]
+    end
+    
+    subgraph "Monitoring Dashboard"
+        EXPORT --> PROMETHEUS[Prometheus]
+        EXPORT --> GRAFANA[Grafana Dashboard]
+        EXPORT --> ALERTS[Alert Manager]
+        ALERTS --> NOTIFY[Notifications]
+    end
+    
+    subgraph "Performance Analysis"
+        STORAGE --> ANALYTICS[Performance Analytics]
+        ANALYTICS --> TRENDS[Trend Analysis]
+        TRENDS --> OPTIMIZATION[Optimization Recommendations]
+    end
+    
+    style MONITOR fill:#e3f2fd
+    style REALTIME fill:#fff3e0
+    style PROMETHEUS fill:#e8f5e8
+    style ANALYTICS fill:#fce4ec
+```
+
+## 🔒 Enterprise Security Features
+
+### Advanced Security Configuration
+
+```go
+type AdapterSecurityConfig struct {
+    // TLS/SSL configuration
+    TLSConfig       *tls.Config              // TLS settings
+    MinTLSVersion   uint16                   // Minimum TLS version
+    CipherSuites    []uint16                 // Allowed cipher suites
+    CertManager     *CertificateManager      // Certificate management
+    
+    // Request security
+    MaxRequestSize  int64                    // Maximum request body size
+    RateLimit       *RateLimitConfig         // Request rate limiting
+    IPWhitelist     []net.IP                 // IP address restrictions
+    
+    // Advanced security features
+    HSTS            *HSTSConfig              // HTTP Strict Transport Security
+    CSP             *CSPConfig               // Content Security Policy
+    CSRF            *CSRFConfig              // Cross-Site Request Forgery protection
+    CORS            *CORSConfig              // Cross-Origin Resource Sharing
+    
+    // Security headers
+    SecurityHeaders map[string]string        // Custom security headers
+    HideServerInfo  bool                     // Hide server information
+    EnableXSSFilter bool                     // XSS protection
+}
+
+// Certificate management với automatic renewal
+type CertificateManager struct {
+    certStore      *CertificateStore         // Certificate storage
+    acmeClient     *ACMEClient              // Let's Encrypt integration
+    renewalChecker *RenewalChecker           // Automatic renewal
+    keyRotation    *KeyRotationManager       // Private key rotation
+}
+
+func (cm *CertificateManager) AutoRenewCertificates() {
+    ticker := time.NewTicker(24 * time.Hour)
+    defer ticker.Stop()
+    
+    for {
+        select {
+        case <-ticker.C:
+            certs := cm.certStore.GetExpiringCertificates(30 * 24 * time.Hour)
+            for _, cert := range certs {
+                if err := cm.renewCertificate(cert); err != nil {
+                    log.Printf("Certificate renewal failed: %v", err)
+                }
+            }
+        }
+    }
+}
+```
+
+### Security Architecture Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant SecurityLayer
+    participant Adapter
+    participant Handler
+    participant Response
+    
+    Client->>SecurityLayer: HTTPS Request
+    SecurityLayer->>SecurityLayer: TLS Handshake
+    SecurityLayer->>SecurityLayer: Certificate Validation
+    SecurityLayer->>SecurityLayer: Rate Limit Check
+    SecurityLayer->>SecurityLayer: IP Whitelist Validation
+    SecurityLayer->>SecurityLayer: Request Size Check
+    SecurityLayer->>Adapter: Validated Request
+    Adapter->>Adapter: Route Resolution
+    Adapter->>Handler: Execute Handler
+    Handler->>Response: Generate Response
+    Response->>SecurityLayer: Add Security Headers
+    SecurityLayer->>SecurityLayer: HSTS Headers
+    SecurityLayer->>SecurityLayer: CSP Headers
+    SecurityLayer->>Client: Secure Response
+    
+    Note over SecurityLayer: Multi-layer security validation
+    Note over Response: Security headers applied automatically
+```
+
+## 🔧 Testing & Development
+
+### Adapter Testing
+
+```go
+type AdapterTestSuite struct {
+    adapter     adapter.Adapter
+    testServer  *httptest.Server
+    client      *http.Client
+}
+
+func NewAdapterTestSuite(adapter adapter.Adapter) *AdapterTestSuite {
+    return &AdapterTestSuite{
+        adapter:    adapter,
+        testServer: httptest.NewServer(adapter),
+        client:     &http.Client{Timeout: 10 * time.Second},
+    }
+}
+
+func (ats *AdapterTestSuite) TestBasicRequest() {
+    // Test basic HTTP request handling
+    resp, err := ats.client.Get(ats.testServer.URL + "/test")
+    assert.NoError(ats.T(), err)
+    assert.Equal(ats.T(), 200, resp.StatusCode)
+}
+
+func (ats *AdapterTestSuite) TestMiddleware() {
+    // Test middleware execution
+    middlewareExecuted := false
+    
+    ats.adapter.Use(func(ctx context.Context) {
+        middlewareExecuted = true
+        ctx.Next()
+    })
+    
+    ats.client.Get(ats.testServer.URL + "/test")
+    assert.True(ats.T(), middlewareExecuted)
+}
+```
+
+### Mock Adapter
+
+```go
+// Mock adapter cho testing
+type MockAdapter struct {
+    name        string
+    requests    []*http.Request
+    responses   []MockResponse
+    middlewares []func(context.Context)
+}
+
+func (m *MockAdapter) Name() string {
+    return m.name
+}
+
+func (m *MockAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    m.requests = append(m.requests, r)
+    
+    // Simulate response
+    if len(m.responses) > 0 {
+        response := m.responses[0]
+        w.WriteHeader(response.StatusCode)
+        w.Write(response.Body)
+    }
+}
+
+func (m *MockAdapter) GetRequests() []*http.Request {
+    return m.requests
+}
+```
+## Performance Considerations
+
+### Adapter Performance Characteristics
+
+| Feature | net/http | FastHTTP | Custom |
+|---------|----------|----------|---------|
+| Memory Allocation | Moderate | Low | Variable |
+| Connection Handling | Standard | Optimized | Configurable |
+| Request Parsing | Standard | Fast | Variable |
+| Response Writing | Standard | Fast | Variable |
+| Middleware Overhead | Low | Very Low | Variable |
+
+### Optimization Strategies
+
+```go
+// Tối ưu hóa cho high-throughput
+type HighPerformanceConfig struct {
+    // Connection pooling
+    MaxIdleConns        int
+    MaxConnsPerHost     int
+    IdleConnTimeout     time.Duration
+    
+    // Buffer management
+    ReadBufferSize      int
+    WriteBufferSize     int
+    
+    // Request handling
+    DisableKeepAlives   bool
+    MaxIdleConnsPerHost int
+}
+
+func NewOptimizedAdapter(config *HighPerformanceConfig) Adapter {
+    // Implementation với performance optimizations
+}
+```
+
+## 🚀 Production Deployment
+
+### Graceful Shutdown Implementation
+
+```go
+func (a *BaseAdapter) GracefulShutdown(ctx context.Context) error {
+    // Tạo channel để signal shutdown completion
+    shutdownComplete := make(chan struct{})
+    
+    go func() {
+        defer close(shutdownComplete)
+        
+        // Stop accepting new connections
+        a.server.SetKeepAlivesEnabled(false)
+        
+        // Wait for existing connections to complete
+        if err := a.server.Shutdown(ctx); err != nil {
+            log.Error("Error during server shutdown:", err)
+        }
+    }()
+    
+    // Wait for shutdown to complete or timeout
+    select {
+    case <-shutdownComplete:
+        log.Info("Server shutdown completed successfully")
+        return nil
+    case <-ctx.Done():
+        log.Warn("Server shutdown timed out")
+        return ctx.Err()
+    }
+}
+```
 
 ### Health Checks
 
 ```go
-app.GET("/health", func(c forkCtx.Context) {
-    adapter := app.GetAdapter()
+// Health check middleware
+func healthCheckMiddleware(ctx context.Context) {
+    if ctx.Path() == "/health" {
+        ctx.JSON(200, map[string]string{
+            "status":    "healthy",
+            "timestamp": time.Now().Format(time.RFC3339),
+            "adapter":   ctx.Get("adapter_name").(string),
+        })
+        return
+    }
     
-    c.JSON(200, map[string]interface{}{
-        "status": "healthy",
-        "adapter": adapter.Name(),
-        "timestamp": time.Now(),
-    })
-})
+    ctx.Next()
+}
+
+// Đăng ký health check
+adapter.Use(healthCheckMiddleware)
 ```
 
-### Performance Metrics
+## 📚 Tài liệu liên quan
+
+- **[Web Application](web-application.md)** - Tích hợp adapter với WebApp
+- **[Router](router.md)** - Router integration với adapter
+- **[Context, Request & Response](context-request-response.md)** - Context handling trong adapter
+- **[Configuration](config.md)** - Cấu hình adapter
+- **[Testing](testing.md)** - Testing adapter implementations
+
+## 💡 Best Practices
+
+### Adapter Selection
 
 ```go
-app.Use(func(c forkCtx.Context) {
-    start := time.Now()
-    c.Next()
-    
-    duration := time.Since(start)
-    log.Printf("Request processed in %v by %s adapter", 
-        duration, 
-        app.GetAdapter().Name())
-})
+// Chọn adapter phù hợp cho use case
+func selectAdapter(requirements *Requirements) adapter.Adapter {
+    switch {
+    case requirements.HighThroughput:
+        return fasthttp.NewAdapter()
+    case requirements.StandardCompliance:
+        return nethttp.NewAdapter()
+    case requirements.CustomProtocol:
+        return custom.NewAdapter(requirements.Config)
+    default:
+        return nethttp.NewAdapter() // Default fallback
+    }
+}
 ```
 
-## Related Files
+### Error Handling
 
-- [`adapter/adapter.go`](../adapter/adapter.go) - Adapter interface
-- [`adapter/http/`](../adapter/http/) - Standard HTTP adapter
-- [`adapter/fasthttp/`](../adapter/fasthttp/) - FastHTTP adapter  
-- [`adapter/http2/`](../adapter/http2/) - HTTP/2 adapter
-- [`adapter/quic/`](../adapter/quic/) - QUIC/HTTP3 adapter
-- [`adapter/unified/`](../adapter/unified/) - Unified adapter
+```go
+// Robust error handling trong adapter
+func (a *BaseAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    defer func() {
+        if err := recover(); err != nil {
+            log.Error("Panic in adapter:", err)
+            http.Error(w, "Internal Server Error", 500)
+        }
+    }()
+    
+    if a.handler == nil {
+        http.Error(w, "No handler configured", 500)
+        return
+    }
+    
+    a.handler.ServeHTTP(w, r)
+}
+```
+
+### Resource Management
+
+```go
+// Proper resource cleanup
+func (a *BaseAdapter) Cleanup() {
+    // Close connections
+    if a.server != nil {
+        a.server.Close()
+    }
+    
+    // Clear middlewares
+    a.middlewares = nil
+    
+    // Reset handler
+    a.handler = nil
+}
+```
+
+## 🔧 Ví dụ Usage
+
+### Basic Adapter Setup
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "net/http"
+    
+    "go.fork.vn/fork/adapter"
+)
+
+func main() {
+    // Tạo adapter mới
+    adapter := adapter.NewHTTPAdapter()
+    
+    // Cấu hình middleware
+    adapter.Use(loggingMiddleware)
+    adapter.Use(corsMiddleware)
+    
+    // Đăng ký handlers
+    adapter.HandleFunc("GET", "/", homeHandler)
+    adapter.HandleFunc("GET", "/health", healthHandler)
+    
+    // Khởi động server
+    log.Println("Starting server on :8080")
+    if err := adapter.Serve(); err != nil {
+        log.Fatal("Server failed to start:", err)
+    }
+}
+
+func homeHandler(ctx context.Context) {
+    ctx.String(200, "Welcome to Fork Framework!")
+}
+
+func healthHandler(ctx context.Context) {
+    ctx.JSON(200, map[string]string{
+        "status": "healthy",
+        "adapter": "http",
+    })
+}
+
+func loggingMiddleware(ctx context.Context) {
+    start := time.Now()
+    ctx.Next()
+    duration := time.Since(start)
+    log.Printf("%s %s - %v", ctx.Method(), ctx.Path(), duration)
+}
+```
+
+---
+
+**Fork HTTP Framework Adapter** - HTTP server abstraction layer cho flexible deployment và performance optimization với support cho multiple server implementations.

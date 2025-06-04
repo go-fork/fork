@@ -1,491 +1,620 @@
-# Router - Hệ thống Định tuyến
+# Router - Hệ thống định tuyến HTTP
 
-Package `fork/router` cung cấp hệ thống routing mạnh mẽ và hiệu suất cao cho Fork HTTP Framework. Router sử dụng cấu trúc trie được tối ưu để đảm bảo tốc độ tra cứu nhanh và hỗ trợ các pattern phức tạp.
+Package `fork/router` cung cấp hệ thống routing hiệu suất cao cho Fork HTTP Framework. Router engine sử dụng cấu trúc dữ liệu trie được tối ưu hóa để đảm bảo hiệu suất tra cứu nhanh và khả năng khớp pattern toàn diện.
 
-## Tổng quan
+## 🏗️ Tổng quan kiến trúc
 
-Router system bao gồm:
+Router subsystem được thiết kế với khả năng mở rộng và tối ưu hóa hiệu suất:
 
-- **Router Interface**: Định nghĩa các phương thức chuẩn cho routing
-- **DefaultRouter**: Implementation mặc định với trie structure
-- **Route Groups**: Tổ chức routes theo cấu trúc phân cấp
-- **Middleware Support**: Tích hợp middleware chain
-- **Pattern Matching**: Hỗ trợ parameters, wildcards, và regex
+- **Router Interface**: Contract routing chuẩn hóa với implementations có thể thay thế
+- **DefaultRouter**: Implementation sẵn sàng production với tối ưu hóa dựa trên trie
+- **Route Groups**: Tổ chức route theo cấu trúc phân cấp với namespace isolation
+- **Middleware Integration**: Thực thi middleware chain hiệu quả
+- **Pattern Matching**: Dynamic parameters, wildcards, regex patterns với type safety
 
-## Router Interface
+### Sơ đồ kiến trúc Router
 
-### Core Methods
-
-#### Route Registration
-
-```go
-// Đăng ký route với method và path cụ thể
-Handle(method string, path string, handlers ...HandlerFunc)
-
-// Tạo route group với prefix
-Group(prefix string) Router
-
-// Thêm middleware vào router
-Use(middleware ...HandlerFunc)
+```mermaid
+graph TB
+    subgraph "Router Core Architecture"
+        RI[Router Interface]
+        DR[DefaultRouter Implementation]
+        TRIE[Trie Data Structure]
+        RG[Route Groups]
+        MW[Middleware Chain]
+    end
+    
+    subgraph "Route Processing Pipeline"
+        REQ[HTTP Request]
+        MATCH[Route Matching]
+        PARAM[Parameter Extraction]
+        HANDLER[Handler Execution]
+        RESP[HTTP Response]
+    end
+    
+    subgraph "Performance Optimization"
+        TRIE_OPT[Trie Optimization]
+        LINEAR[Linear Fallback]
+        PARAM_EXT[Parameter Extraction]
+        SECURITY[Security Checks]
+    end
+    
+    RI --> DR
+    DR --> TRIE
+    DR --> RG
+    RG --> MW
+    
+    REQ --> MATCH
+    MATCH --> PARAM
+    PARAM --> HANDLER
+    HANDLER --> RESP
+    
+    TRIE --> TRIE_OPT
+    MW --> LINEAR
+    HANDLER --> PARAM_EXT
+    MATCH --> SECURITY
+    
+    style RI fill:#e1f5fe
+    style TRIE fill:#e8f5e8
+    style TRIE_OPT fill:#fff3e0
 ```
 
-#### Static Files
+## 🔧 Router Interface
+
+Router interface định nghĩa contract chuẩn cho HTTP routing trong framework.
+
+### Phương thức cốt lõi
 
 ```go
-// Phục vụ static files
-Static(prefix string, root string)
-```
-
-#### Route Management
-
-```go
-// Lấy tất cả routes đã đăng ký
-Routes() []Route
-
-// HTTP handler integration
-ServeHTTP(w http.ResponseWriter, req *http.Request)
-
-// Tìm handler cho method và path
-Find(method, path string) HandlerFunc
-```
-
-## DefaultRouter Implementation
-
-### Architecture
-
-```go
-type DefaultRouter struct {
-    basePath    string                          // Base path cho router
-    routes      map[string]*trieNode           // Route trees theo method
-    middleware  []HandlerFunc                  // Global middleware
-    staticDirs  map[string]string              // Static directory mappings
-    mu          sync.RWMutex                   // Thread safety
+type Router interface {
+    // Handle đăng ký một handler cho method và path cụ thể
+    Handle(method string, path string, handlers ...HandlerFunc)
+    
+    // Group tạo một router group mới với prefix đường dẫn
+    Group(prefix string) Router
+    
+    // Use thêm middleware vào router
+    Use(middleware ...HandlerFunc)
+    
+    // Static phục vụ static files từ thư mục root
+    Static(prefix string, root string)
+    
+    // Routes trả về tất cả routes đã đăng ký
+    Routes() []Route
+    
+    // ServeHTTP implements interface http.Handler
+    ServeHTTP(w http.ResponseWriter, req *http.Request)
+    
+    // Find tìm route phù hợp với method và path
+    Find(method, path string) HandlerFunc
 }
 ```
-
-### Features
-
-- **Trie-based Routing**: O(k) lookup time với k là độ dài path
-- **Parameter Extraction**: Automatic parameter parsing từ URL
-- **Wildcard Support**: Catch-all routes với `*`
-- **Middleware Chaining**: Efficient middleware execution
-- **Thread Safety**: Concurrent-safe route registration và lookup
-
-## Route Patterns
-
-### Static Routes
-
-```go
-router.Handle("GET", "/users", getUsersHandler)
-router.Handle("POST", "/users", createUserHandler)
-```
-
-### Parameter Routes
-
-```go
-// Named parameters với `:name`
-router.Handle("GET", "/users/:id", getUserHandler)
-router.Handle("PUT", "/users/:id", updateUserHandler)
-
-// Multiple parameters
-router.Handle("GET", "/users/:id/posts/:postId", getPostHandler)
-```
-
-### Wildcard Routes
-
-```go
-// Catch-all với `*name`
-router.Handle("GET", "/files/*filepath", serveFileHandler)
-
-// Với prefix
-router.Handle("GET", "/api/*any", apiHandler)
-```
-
-### Priority và Matching
-
-1. **Static routes** (highest priority)
-2. **Parameter routes** 
-3. **Wildcard routes** (lowest priority)
-
-## HandlerFunc
-
-### Definition
-
-```go
-type HandlerFunc func(ctx forkCtx.Context)
-```
-
-### Handler Chain
-
-Mỗi route có thể có multiple handlers tạo thành chain:
-
-```go
-router.Handle("GET", "/protected", 
-    authMiddleware,
-    logMiddleware, 
-    actualHandler)
-```
-
-## Route Groups
-
-### Creating Groups
-
-```go
-// Tạo group với prefix
-api := router.Group("/api")
-v1 := api.Group("/v1")
-v2 := api.Group("/v2")
-```
-
-### Group Middleware
-
-```go
-// Middleware cho toàn group
-api.Use(corsMiddleware)
-api.Use(authMiddleware)
-
-// Routes trong group
-api.Handle("GET", "/users", getUsersHandler)     // -> /api/users
-api.Handle("POST", "/users", createUserHandler)  // -> /api/users
-```
-
-### Nested Groups
-
-```go
-api := router.Group("/api")
-{
-    api.Use(corsMiddleware)
-    
-    v1 := api.Group("/v1")
-    {
-        v1.Use(legacyMiddleware)
-        v1.Handle("GET", "/users", getUsersV1)
-    }
-    
-    v2 := api.Group("/v2")
-    {
-        v2.Use(modernMiddleware)
-        v2.Handle("GET", "/users", getUsersV2)
-    }
-}
-```
-
-## Route Information
 
 ### Route Structure
 
 ```go
 type Route struct {
-    Method  string      // HTTP method
-    Path    string      // URL path pattern
-    Handler HandlerFunc // Handler function
+    Method  string      // HTTP method (GET, POST, PUT, DELETE, v.v.)
+    Path    string      // URL path pattern của route
+    Handler HandlerFunc // Function xử lý requests khớp với route này
 }
 ```
 
-### Getting Routes
+### Handler Function
 
 ```go
-// Lấy tất cả routes
-allRoutes := router.Routes()
+type HandlerFunc func(ctx context.Context)
+```
 
-for _, route := range allRoutes {
-    fmt.Printf("%s %s\n", route.Method, route.Path)
+## 🚀 DefaultRouter Implementation
+
+DefaultRouter là implementation mặc định của Router interface, cung cấp cơ chế routing dựa trên path patterns với hỗ trợ cho parameters, wildcards, và regex patterns.
+
+### Cấu trúc DefaultRouter
+
+```go
+type DefaultRouter struct {
+    basePath    string             // Tiền tố đường dẫn cho tất cả routes
+    routes      []Route            // Danh sách các routes đã đăng ký
+    middlewares []HandlerFunc      // Danh sách middleware functions
+    groups      []*DefaultRouter   // Danh sách các sub-routers (groups)
+    trie        *RouteTrie         // Trie cho việc tìm kiếm route nhanh
+    enableTrie  bool               // Bật/tắt việc sử dụng trie (mặc định: true)
 }
 ```
 
-## Static File Serving
-
-### Basic Static
+### Tạo Router mới
 
 ```go
-// Phục vụ files từ ./public dưới /static
-router.Static("/static", "./public")
-
-// Multiple static directories
-router.Static("/css", "./assets/css")
-router.Static("/js", "./assets/js")
-router.Static("/images", "./assets/images")
+func NewRouter() Router {
+    return &DefaultRouter{
+        basePath:    "",
+        routes:      make([]Route, 0),
+        middlewares: make([]HandlerFunc, 0),
+        groups:      make([]*DefaultRouter, 0),
+        trie:        NewRouteTrie(),
+        enableTrie:  true,
+    }
+}
 ```
 
-### Advanced Static Configuration
+### Kiến trúc Router Class
 
-```go
-// Custom static handler
-router.Handle("GET", "/uploads/*filepath", func(c forkCtx.Context) {
-    filepath := c.Param("filepath")
-    
-    // Security check
-    if strings.Contains(filepath, "..") {
-        c.Status(403)
-        return
+```mermaid
+classDiagram
+    class Router {
+        <<interface>>
+        +Handle(method: string, path: string, handlers: ...HandlerFunc)
+        +Group(prefix: string) Router
+        +Use(middleware: ...HandlerFunc)
+        +Static(prefix: string, root: string)
+        +Routes() []Route
+        +ServeHTTP(w: ResponseWriter, r: *Request)
+        +Find(method: string, path: string) HandlerFunc
     }
     
-    fullPath := "./storage/uploads/" + filepath
-    c.File(fullPath)
-})
+    class DefaultRouter {
+        -basePath: string
+        -routes: []Route
+        -middlewares: []HandlerFunc
+        -groups: []*DefaultRouter
+        -trie: *RouteTrie
+        -enableTrie: bool
+        +Handle(method: string, path: string, handlers: ...HandlerFunc)
+        +Group(prefix: string) Router
+        +Use(middleware: ...HandlerFunc)
+        +Static(prefix: string, root: string)
+        +Routes() []Route
+        +ServeHTTP(w: ResponseWriter, r: *Request)
+        +Find(method: string, path: string) HandlerFunc
+        +RemoveGroup(prefix: string) bool
+        +Clear()
+    }
+    
+    class RouteTrie {
+        -root: *TrieNode
+        -mu: sync.RWMutex
+        +Insert(method: string, path: string, handler: HandlerFunc)
+        +Find(method: string, path: string) HandlerFunc
+        +Clear()
+    }
+    
+    class TrieNode {
+        -children: map[string]*TrieNode
+        -isParam: bool
+        -paramName: string
+        -isWildcard: bool
+        -isOptional: bool
+        -regexPattern: string
+        -handlers: map[string]HandlerFunc
+        -isEndNode: bool
+        -mu: sync.RWMutex
+    }
+    
+    class Route {
+        +Method: string
+        +Path: string
+        +Handler: HandlerFunc
+    }
+    
+    Router <|-- DefaultRouter
+    DefaultRouter --> RouteTrie
+    DefaultRouter --> Route
+    RouteTrie --> TrieNode
+    
+    style Router fill:#e1f5fe
+    style DefaultRouter fill:#e8f5e8
+    style RouteTrie fill:#fff3e0
 ```
 
-## Usage Examples
+## 🎯 Route Pattern Matching
 
-### Basic Router Setup
+### Các loại Route Patterns
+
+Router hỗ trợ nhiều loại patterns khác nhau:
+
+#### 1. Static Routes
+```go
+router.Handle("GET", "/api/health", healthHandler)
+router.Handle("POST", "/api/users", createUserHandler)
+```
+
+#### 2. Named Parameters
+```go
+// Single parameter
+router.Handle("GET", "/users/:id", getUserHandler)
+
+// Multiple parameters  
+router.Handle("GET", "/users/:id/posts/:postId", getPostHandler)
+```
+
+#### 3. Optional Parameters
+```go
+// Optional version parameter
+router.Handle("GET", "/api/:version?/users", listUsersHandler)
+```
+
+#### 4. Wildcard Parameters
+```go
+// Catch-all wildcard
+router.Handle("GET", "/files/*filepath", serveFileHandler)
+```
+
+#### 5. Regex Constraints
+```go
+// Parameter với regex constraint
+router.Handle("GET", "/users/:id<\\d+>", getUserByIdHandler)
+```
+
+### Parameter Extraction
 
 ```go
-func main() {
-    router := router.NewDefaultRouter()
-    
-    // Basic routes
-    router.Handle("GET", "/", homeHandler)
-    router.Handle("GET", "/about", aboutHandler)
-    
-    // Parameter routes
-    router.Handle("GET", "/users/:id", getUserHandler)
-    router.Handle("PUT", "/users/:id", updateUserHandler)
-    
-    // Start server
-    http.ListenAndServe(":8080", router)
+func getUserHandler(ctx context.Context) {
+    userID := ctx.Param("id")
+    // Xử lý với userID
 }
 
-func homeHandler(c forkCtx.Context) {
-    c.JSON(200, map[string]string{
-        "message": "Welcome home!",
-    })
-}
-
-func getUserHandler(c forkCtx.Context) {
-    userID := c.Param("id")
-    c.JSON(200, map[string]string{
-        "user_id": userID,
-    })
+func getFileHandler(ctx context.Context) {
+    filepath := ctx.Param("filepath")
+    // Xử lý với filepath
 }
 ```
 
-### REST API Example
+## 🔗 Route Groups
+
+Route Groups cho phép tổ chức routes theo cấu trúc phân cấp và áp dụng middleware chung.
+
+### Tạo Route Groups
 
 ```go
-func setupRoutes() router.Router {
-    r := router.NewDefaultRouter()
+// Tạo API group với prefix
+api := router.Group("/api")
+
+// Thêm middleware cho group
+api.Use(authMiddleware)
+api.Use(loggingMiddleware)
+
+// Đăng ký routes trong group
+api.Handle("GET", "/users", listUsersHandler)
+api.Handle("POST", "/users", createUserHandler)
+
+// Tạo nested groups
+v1 := api.Group("/v1")
+v1.Handle("GET", "/posts", listPostsHandler)
+
+v2 := api.Group("/v2")
+v2.Handle("GET", "/posts", listPostsV2Handler)
+```
+
+### Group Management
+
+```go
+// Xóa group để tránh memory leaks
+router.RemoveGroup("/api/v1")
+
+// Clear tất cả resources
+router.Clear()
+```
+
+### Group Architecture Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Router
+    participant Group
+    participant Middleware
+    participant Handler
     
-    // Middleware
-    r.Use(loggerMiddleware)
-    r.Use(corsMiddleware)
+    Client->>Router: HTTP Request
+    Router->>Router: Route Resolution
+    Router->>Group: Find Matching Group
+    Group->>Middleware: Execute Group Middleware
+    Middleware->>Handler: Execute Route Handler
+    Handler->>Group: Response
+    Group->>Router: Response
+    Router->>Client: HTTP Response
     
+    Note over Middleware: Group middleware được thực thi trước route handler
+```
+
+## 📁 Static File Serving
+
+Router cung cấp khả năng phục vụ static files với các tính năng bảo mật.
+
+### Đăng ký Static Routes
+
+```go
+// Phục vụ static files từ thư mục
+router.Static("/static", "./public")
+router.Static("/assets", "./assets")
+```
+
+### Security Features
+
+Router tự động bảo vệ khỏi path traversal attacks:
+
+```go
+func (r *DefaultRouter) Static(prefix string, root string) {
+    absolutePath := r.calculateAbsolutePath(prefix)
+    handler := func(ctx Context) {
+        path := ctx.Path()
+        if strings.HasPrefix(path, absolutePath) {
+            relativePath := strings.TrimPrefix(path, absolutePath)
+            
+            // Ngăn chặn path traversal
+            if strings.Contains(relativePath, "..") {
+                ctx.Status(http.StatusForbidden)
+                ctx.String(http.StatusForbidden, "403 Forbidden")
+                return
+            }
+            
+            // Đảm bảo path an toàn
+            if !strings.HasPrefix(relativePath, "/") {
+                relativePath = "/" + relativePath
+            }
+            
+            filePath := root + relativePath
+            
+            // Kiểm tra bảo mật bổ sung
+            if !strings.HasPrefix(filePath, root) {
+                ctx.Status(http.StatusForbidden)
+                ctx.String(http.StatusForbidden, "403 Forbidden")
+                return
+            }
+            
+            ctx.File(filePath)
+        }
+    }
+    r.Handle("GET", prefix+"/*filepath", handler)
+}
+```
+
+## ⚡ Trie Optimization
+
+Router sử dụng cấu trúc dữ liệu Trie để tối ưu hóa hiệu suất tra cứu route.
+
+### TrieNode Structure
+
+```go
+type TrieNode struct {
+    children     map[string]*TrieNode  // Các node con
+    isParam      bool                  // Node này có phải là parameter không
+    paramName    string                // Tên parameter
+    isWildcard   bool                  // Node này có phải là wildcard không
+    isOptional   bool                  // Parameter có optional không
+    regexPattern string                // Regex constraint cho parameter
+    handlers     map[string]HandlerFunc // Handlers theo HTTP method
+    isEndNode    bool                  // Đây có phải là node cuối không
+    mu           sync.RWMutex          // Bảo vệ truy cập đồng thời
+}
+```
+
+### RouteTrie Implementation
+
+```go
+type RouteTrie struct {
+    root *TrieNode
+    mu   sync.RWMutex
+}
+
+func NewRouteTrie() *RouteTrie {
+    return &RouteTrie{
+        root: &TrieNode{
+            children: make(map[string]*TrieNode),
+            handlers: make(map[string]HandlerFunc),
+        },
+    }
+}
+```
+
+### Trie Performance
+
+- **Insertion**: O(k) với k = độ dài path
+- **Lookup**: O(k) với k = độ dài path  
+- **Memory**: Efficient với shared prefixes
+- **Concurrency**: Thread-safe với RWMutex
+
+## 🔍 Route Resolution Process
+
+### Route Finding Algorithm
+
+Router sử dụng thuật toán hybrid để tìm routes:
+
+1. **Trie Search** (ưu tiên): O(k) lookup
+2. **Linear Fallback**: Khi trie không khả dụng
+
+```go
+func (r *DefaultRouter) findRoute(method, path string) *Route {
+    // Sử dụng trie search nếu được bật
+    if r.enableTrie && r.trie != nil {
+        if handler := r.trie.Find(method, path); handler != nil {
+            // Tìm route tương ứng trong danh sách routes
+            for _, route := range r.routes {
+                if route.Method == method && r.pathMatch(route.Path, path) {
+                    return &route
+                }
+            }
+        }
+    }
+    
+    // Fallback to linear search
+    for _, route := range r.routes {
+        if route.Method == method && r.pathMatch(route.Path, path) {
+            return &route
+        }
+    }
+    
+    // Kiểm tra trong các groups
+    for _, group := range r.groups {
+        if route := group.findRoute(method, path); route != nil {
+            return route
+        }
+    }
+    
+    return nil
+}
+```
+
+### Parameter Extraction Process
+
+```go
+func (r *DefaultRouter) extractParams(pattern, path string) map[string]string {
+    params := make(map[string]string)
+    
+    patternSegments := r.splitPath(pattern)
+    pathSegments := r.splitPath(path)
+    
+    // Xử lý wildcard
+    wildcardIndex := -1
+    for i, segment := range patternSegments {
+        if strings.HasPrefix(segment, "*") {
+            wildcardIndex = i
+            break
+        }
+    }
+    
+    // Xử lý optional parameters
+    // Xử lý named parameters
+    // Xử lý regex constraints
+    
+    return params
+}
+```
+
+## 💡 Best Practices
+
+### Route Organization
+
+```go
+// ✅ Tốt: Cấu trúc route có tổ chức
+func setupRoutes(router Router) {
     // API routes
-    api := r.Group("/api/v1")
+    api := router.Group("/api")
+    api.Use(authMiddleware)
+    
+    v1 := api.Group("/v1")
     {
-        // Users
-        users := api.Group("/users")
+        users := v1.Group("/users")
         users.Handle("GET", "", listUsers)
         users.Handle("POST", "", createUser)
         users.Handle("GET", "/:id", getUser)
         users.Handle("PUT", "/:id", updateUser)
         users.Handle("DELETE", "/:id", deleteUser)
         
-        // Posts
-        posts := api.Group("/posts")
-        posts.Use(authMiddleware) // Auth required for posts
+        posts := v1.Group("/posts")
         posts.Handle("GET", "", listPosts)
         posts.Handle("POST", "", createPost)
-        posts.Handle("GET", "/:id", getPost)
-        posts.Handle("PUT", "/:id", updatePost)
-        posts.Handle("DELETE", "/:id", deletePost)
     }
+    
+    // Static files
+    router.Static("/static", "./public")
+}
+
+// ❌ Không tốt: Cấu trúc route phẳng
+router.Handle("GET", "/api/v1/users", listUsers)
+router.Handle("POST", "/api/v1/users", createUser)
+router.Handle("GET", "/api/v1/users/:id", getUser)
+// ... nhiều routes khác
+```
+
+### Middleware Ordering
+
+```go
+// ✅ Tốt: Thứ tự middleware hợp lý
+router.Use(corsMiddleware)        // CORS trước tiên
+router.Use(compressionMiddleware) // Compression cho tất cả responses
+router.Use(authMiddleware)        // Auth khi cần thiết
+router.Use(loggingMiddleware)     // Logging cuối cùng
+
+// ❌ Không tốt: Thứ tự middleware không hiệu quả
+router.Use(heavyProcessingMiddleware) // Middleware nặng trước
+router.Use(compressionMiddleware)     // Middleware nhẹ sau
+```
+
+### Memory Management
+
+```go
+// ✅ Tốt: Sử dụng param hiệu quả
+func getUserHandler(ctx Context) {
+    userID := ctx.Param("id")
+    // Xử lý trực tiếp userID
+}
+
+// ❌ Không tốt: Cấp phát bộ nhớ không cần thiết
+func getUserHandler(ctx Context) {
+    params := make(map[string]string)
+    params["id"] = ctx.Param("id")
+    // Cấp phát map không cần thiết
+}
+```
+
+## 📚 Tài liệu liên quan
+
+- **[Web Application](web-application.md)** - Tích hợp WebApp với router
+- **[Context, Request & Response](context-request-response.md)** - Sử dụng context system
+- **[Middleware](middleware.md)** - Phát triển và tích hợp middleware
+- **[Error Handling](error-handling.md)** - Quản lý lỗi trong routing
+- **[Configuration](config.md)** - Tùy chọn cấu hình router
+- **[Testing](testing.md)** - Framework testing toàn diện
+
+## 🔧 Ví dụ Usage
+
+### Basic Router Setup
+
+```go
+package main
+
+import (
+    "go.fork.vn/fork/router"
+    "go.fork.vn/fork/context"
+)
+
+func main() {
+    // Tạo router mới
+    r := router.NewRouter()
+    
+    // Đăng ký middleware
+    r.Use(loggingMiddleware)
+    r.Use(authMiddleware)
+    
+    // Đăng ký routes
+    r.Handle("GET", "/", homeHandler)
+    r.Handle("GET", "/health", healthHandler)
+    
+    // API routes
+    api := r.Group("/api/v1")
+    api.Handle("GET", "/users", listUsersHandler)
+    api.Handle("GET", "/users/:id", getUserHandler)
+    api.Handle("POST", "/users", createUserHandler)
     
     // Static files
     r.Static("/static", "./public")
     
-    return r
-}
-```
-
-### Middleware Integration
-
-```go
-// Logger middleware
-func loggerMiddleware(c forkCtx.Context) {
-    start := time.Now()
-    
-    // Process request
-    c.Next()
-    
-    // Log after processing
-    duration := time.Since(start)
-    log.Printf("%s %s - %v", 
-        c.Method(), 
-        c.Path(), 
-        duration)
+    // Khởi động server
+    log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// Auth middleware
-func authMiddleware(c forkCtx.Context) {
-    token := c.GetHeader("Authorization")
-    
-    if !isValidToken(token) {
-        c.JSON(401, map[string]string{
-            "error": "Unauthorized",
-        })
-        c.Abort() // Stop chain
-        return
-    }
-    
-    // Add user info to context
-    user := getUserFromToken(token)
-    c.Set("user", user)
-    
-    c.Next()
+func homeHandler(ctx context.Context) {
+    ctx.String(200, "Welcome to Fork Framework!")
 }
 
-// Route với middleware
-router.Handle("GET", "/protected", 
-    authMiddleware,
-    func(c forkCtx.Context) {
-        user, _ := c.Get("user")
-        c.JSON(200, map[string]interface{}{
-            "message": "Protected data",
-            "user": user,
-        })
+func healthHandler(ctx context.Context) {
+    ctx.JSON(200, map[string]string{
+        "status": "ok",
+        "version": "1.0.0",
     })
-```
+}
 
-### Parameter Extraction
-
-```go
-// Route với multiple parameters
-router.Handle("GET", "/users/:userId/posts/:postId/comments/:commentId", 
-    func(c forkCtx.Context) {
-        userID := c.Param("userId")
-        postID := c.Param("postId")
-        commentID := c.Param("commentId")
-        
-        c.JSON(200, map[string]string{
-            "user_id": userID,
-            "post_id": postID,
-            "comment_id": commentID,
-        })
+func getUserHandler(ctx context.Context) {
+    userID := ctx.Param("id")
+    ctx.JSON(200, map[string]string{
+        "id": userID,
+        "name": "User " + userID,
     })
-
-// Wildcard route
-router.Handle("GET", "/files/*path", func(c forkCtx.Context) {
-    filePath := c.Param("path")
-    
-    // Serve file
-    fullPath := "./storage/" + filePath
-    c.File(fullPath)
-})
-```
-
-### Advanced Route Organization
-
-```go
-type RouteGroup struct {
-    router router.Router
-}
-
-func NewRouteGroup(r router.Router) *RouteGroup {
-    return &RouteGroup{router: r}
-}
-
-func (rg *RouteGroup) SetupUserRoutes() {
-    users := rg.router.Group("/users")
-    users.Use(validateJSONMiddleware)
-    
-    users.Handle("GET", "", rg.listUsers)
-    users.Handle("POST", "", rg.createUser)
-    users.Handle("GET", "/:id", rg.getUser)
-    users.Handle("PUT", "/:id", rg.updateUser)
-    users.Handle("DELETE", "/:id", rg.deleteUser)
-    
-    // User profile routes
-    profile := users.Group("/:id/profile")
-    profile.Handle("GET", "", rg.getUserProfile)
-    profile.Handle("PUT", "", rg.updateUserProfile)
-    profile.Handle("POST", "/avatar", rg.uploadAvatar)
-}
-
-func (rg *RouteGroup) listUsers(c forkCtx.Context) {
-    // Implementation...
 }
 ```
 
-## Performance Optimization
+---
 
-### Trie Structure
-
-Router sử dụng trie (prefix tree) để tối ưu hiệu suất:
-
-```go
-type trieNode struct {
-    path     string           // Path segment
-    children map[string]*trieNode // Child nodes
-    handler  HandlerFunc      // Handler for this node
-    isParam  bool            // Is parameter node
-    isWild   bool            // Is wildcard node
-    paramName string         // Parameter name
-}
-```
-
-### Lookup Complexity
-
-- **Static routes**: O(1) average case
-- **Parameter routes**: O(k) với k là số segments
-- **Wildcard routes**: O(k) với fallback matching
-
-### Memory Optimization
-
-- Shared path segments
-- Lazy node creation
-- Efficient string handling
-
-## Thread Safety
-
-Router implementation là thread-safe:
-
-```go
-type DefaultRouter struct {
-    // ... other fields
-    mu sync.RWMutex // Read-write mutex
-}
-
-func (r *DefaultRouter) Handle(method, path string, handlers ...HandlerFunc) {
-    r.mu.Lock()
-    defer r.mu.Unlock()
-    // ... implementation
-}
-
-func (r *DefaultRouter) Find(method, path string) HandlerFunc {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
-    // ... implementation
-}
-```
-
-## Best Practices
-
-1. **Route Organization**: Sử dụng groups để tổ chức routes logic
-2. **Middleware Order**: Đặt global middleware trước specific middleware
-3. **Parameter Validation**: Validate parameters trong handlers
-4. **Error Handling**: Implement proper error handling cho route not found
-5. **Static Files**: Sử dụng dedicated static file server cho production
-6. **Performance**: Minimize middleware overhead cho high-traffic routes
-7. **Security**: Implement proper authentication và authorization
-
-## Integration với WebApp
-
-WebApp sử dụng router thông qua wrapper methods:
-
-```go
-// WebApp methods delegate to router
-func (app *WebApp) GET(path string, handlers ...router.HandlerFunc) {
-    app.router.Handle("GET", path, handlers...)
-}
-
-func (app *WebApp) Group(prefix string) router.Router {
-    return app.router.Group(prefix)
-}
-```
-
-## Related Files
-
-- [`router/router.go`](../router/router.go) - Router implementation
-- [`router/trie.go`](../router/trie.go) - Trie data structure
-- [`router/router_test.go`](../router/router_test.go) - Tests và examples
-- [`constants.go`](../constants.go) - HTTP method constants
+**Fork HTTP Framework Router** - Hệ thống routing hiệu suất cao cho Go web applications với tính năng toàn diện, bảo mật nâng cao, và patterns scalability production-ready.
