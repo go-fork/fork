@@ -1,7 +1,7 @@
-# Migration Guide - v0.1.0
+# Migration Guide - v0.1.1
 
 ## Overview
-This guide helps you migrate from the previous version to v0.1.0.
+This guide helps you migrate from the previous version to v0.1.1.
 
 ## Prerequisites
 - Go 1.23 or later
@@ -22,7 +22,7 @@ This guide helps you migrate from the previous version to v0.1.0.
 // Old way (previous version)
 oldFunction(param1, param2)
 
-// New way (v0.1.0)
+// New way (v0.1.1)
 newFunction(param1, param2, newParam)
 ```
 
@@ -63,7 +63,7 @@ new_option: false
 
 ### Step 1: Update Dependencies
 ```bash
-go get go.fork.vn/fork@v0.1.0
+go get go.fork.vn/fork@v0.1.1
 go mod tidy
 ```
 
@@ -105,7 +105,7 @@ go test ./...
 **Solution**: Cast the value or update variable type
 
 ## Getting Help
-- Check the [documentation](https://pkg.go.dev/go.fork.vn/fork@v0.1.0)
+- Check the [documentation](https://pkg.go.dev/go.fork.vn/fork@v0.1.1)
 - Search [existing issues](https://github.com/go-fork/fork/issues)
 - Create a [new issue](https://github.com/go-fork/fork/issues/new) if needed
 

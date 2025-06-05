@@ -7,7 +7,9 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
-### Added (Thêm mới)
+## [v0.1.0] - 2025-06-05
+
+### Added
 
 #### docs: Comprehensive documentation restructure
 - Professional enterprise-grade README.md with visual design and architecture diagrams
@@ -50,7 +52,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - Integration tests for complete registration and boot cycle
   - Advanced mock integration using multiple package mocks
 
-### Changed (Thay đổi)
+### Changed
 
 #### deps: Dependency updates
 - `go.fork.vn/config`: v0.1.0 → v0.1.3
@@ -62,7 +64,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - Updated `ServiceProvider.Boot()` to use new private method
 - Improved code organization and encapsulation
 
-### Fixed (Sửa lỗi)
+### Fixed
 
 #### fix: Enhanced error handling
 - **ServiceProvider.Register()**: Added comprehensive nil checks and panic handling
@@ -96,7 +98,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [v0.0.9] - 2025-06-01
 
-### Added (Thêm mới)
+### Added
 
 #### feat: Core Framework Components
 
@@ -454,43 +456,6 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - Structured Error Handling: Complete HTTP error management
 - Production-Ready: Graceful shutdown, health checks, monitoring
 
-### Package Structure (Cấu trúc Gói)
-
-```
-go.fork.vn/fork/
-├── adapter/           # HTTP adapter implementations
-│   ├── adapter.go     # Base adapter interface
-│   └── README.md      # Adapter documentation
-├── context/           # Request/response context system
-│   ├── context.go     # Main context implementation
-│   ├── request.go     # Request handling
-│   ├── response.go    # Response helpers
-│   └── *_test.go      # Comprehensive tests
-├── docs/              # Complete documentation
-│   ├── overview.md    # Getting started guide
-│   ├── config.md      # Configuration documentation
-│   ├── *.md           # Component documentation
-│   └── index.md       # Documentation index
-├── errors/            # Error handling system
-│   ├── errors.go      # HttpError implementation
-│   └── errors_test.go # Error handling tests
-├── router/            # Advanced routing system
-│   ├── router.go      # Main router implementation
-│   ├── trie.go        # Trie data structure
-│   └── *_test.go      # Router tests
-├── configs/           # Configuration examples
-│   └── app.example.yaml
-├── web_app.go         # Main WebApp implementation
-├── config.go          # Configuration management
-├── provider.go        # Service provider implementation
-├── constants.go       # Framework constants
-├── doc.go             # Package documentation
-├── go.mod             # Module dependencies
-├── README.md          # Project README
-└── LICENSE            # MIT License
-```
-
----
 
 ## 🏁 Next Steps & Roadmap
 
